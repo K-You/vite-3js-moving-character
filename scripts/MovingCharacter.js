@@ -35,13 +35,16 @@ class MovingCharacter {
     // Array of animations mixers
     this.mixers = [];
 
-    this.loadStormtrooper();
     this.trooper = null;
+    this.loadStormtrooper();
+    this.tie = null;
+    this.loadTieFighter();
 
     window.addEventListener('resize', () => {
       this.onWindowResize();
     }, false);
 
+    this.totalTimeElapsed = 0;
     this.previousRAF = null;
     this.animate();
   }
@@ -63,7 +66,24 @@ class MovingCharacter {
     });
   }
 
-  animate(){
+  loadTieFighter() {
+    const gltfLoader = new GLTFLoader();
+    gltfLoader.load('../assets/star_wars_tie_fighter/scene.gltf', (tie) => {
+      tie.scene.traverse(c => {
+        c.castShadow = true;
+      });
+      
+      this.tie = tie.scene;
+      this.tie.scale.set(2,2,2);
+    });
+  }
+  
+  animateTieFighter() {
+    this.scene.add(this.tie);
+    this.tie.position.set(0, 20, -4000);
+  }
+
+  animate() {
     requestAnimationFrame((t) => {
       this.controls.update();
 
@@ -73,11 +93,37 @@ class MovingCharacter {
       }
 
       this.animate();
-  
+
+      if (this.tieFighter) {
+        let speed = 1;
+        if(this.tie.position.z < -1000) {
+          speed = 200;
+        }
+        if(this.tie.position.z < -500) {
+          speed = 25;
+        }
+        if(this.tie.position.z > 500) {
+          speed = 60;
+        }
+        if(this.tie.position.z > 1000) {
+          speed = 90;
+        }
+        if(this.tie.position.z > 2000) {
+          this.tieFighter = false;
+        }
+        this.tie.position.z += speed;        
+      }
+
       const timeElapsed = (t-this.previousRAF) * 0.001;
+      this.totalTimeElapsed += timeElapsed;
+
+      if(this.totalTimeElapsed > 5 && !this.tieFighter) {
+        this.tieFighter = true;
+        this.animateTieFighter();
+      }
+
       if(this.mixers){
         this.mixers.map(m => {
-          console.log();
           m.update(timeElapsed)
         })
       }
