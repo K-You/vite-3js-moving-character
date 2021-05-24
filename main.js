@@ -1,7 +1,9 @@
+import * as dat from 'dat.gui';
 import * as THREE from 'THREE';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { Sky } from 'three/examples/jsm/objects/Sky';
 import './style.css';
+
 
 // Renderer
 const renderer = new THREE.WebGLRenderer({
@@ -15,142 +17,96 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 const scene = new THREE.Scene();
 
 // Camera
-const camera = new THREE.PerspectiveCamera(74, window.innerWidth / window.innerHeight, 0.1, 1000);
+const camera = new THREE.PerspectiveCamera(74, window.innerWidth / window.innerHeight, 0.1, 10000);
 camera.position.setZ(30);
-camera.position.x = -3;
+camera.position.x = 10;
 
 renderer.render(scene, camera);
 
 // Object
-const geometry = new THREE.TorusGeometry(8,3,16,100);
+const geometry = new THREE.PlaneGeometry(1000, 1000);
 const material = new THREE.MeshStandardMaterial({
-  color: 0xFF6347,
-  wireframe: true
+  color: 0x87b375,
 });
-const torus = new THREE.Mesh(geometry, material);
-scene.add(torus);
+const plane = new THREE.Mesh(geometry, material);
+plane.rotation.x = -Math.PI/2;
+scene.add(plane);
 
 // Light
-const pointLight = new THREE.PointLight(0xFFFFFF);
-pointLight.position.set(5,0,0);
-
 const ambientLight = new THREE.AmbientLight(0xFFFFFF);
-scene.add(pointLight, ambientLight);
+scene.add(ambientLight);
 
 // Helper
-// const lightHelper = new THREE.PointLightHelper(pointLight);
-// const gridHelper = new THREE.GridHelper(200, 50);
-// scene.add(lightHelper, gridHelper);
+const gridHelper = new THREE.GridHelper(200, 50);
+scene.add(gridHelper);
 
 // Controls
 const controls = new OrbitControls(camera, renderer.domElement);
 
+// Sky
 
-// Moon
-const moonTexture = new THREE.TextureLoader().load('assets/moon.jpg');
-const normalTexture = new THREE.TextureLoader().load('assets/normal.jpg');
-const moon = new THREE.Mesh(
-  new THREE.SphereGeometry(3, 32, 32),
-  new THREE.MeshStandardMaterial({
-    map: moonTexture,
-    normalMap: normalTexture
-  })
-)
-scene.add(moon);
+function initSky (){
+  const sky = new Sky();
+  sky.scale.setScalar(450000)
+  scene.add(sky);
 
-moon.position.z = 30;
-moon.position.x = -10;
+  const sun = new THREE.Vector3();
 
-// Stormtrooper + dat.GUI
-// const gui = new dat.GUI();
+  /// GUI
 
-// Array of animations mixers
-const mixers = [];
+  const effectController = {
+    turbidity: 10,
+    rayleigh: 3,
+    mieCoefficient: 0.005,
+    mieDirectionalG: 0.7,
+    elevation: 2,
+    azimuth: 180,
+    exposure: renderer.toneMappingExposure
+  };
 
-const gltfLoader = new GLTFLoader();
-let stormtrooper = null;
-gltfLoader.load('assets/dancing_stormtrooper/scene.gltf', (trooper) => {
-  trooper.scene.position.set(7, -1, -9);
+  function guiChanged() {
 
-  // gui.add(trooper.scene.position, 'x', -20, 20, 1);
-  // gui.add(trooper.scene.position, 'y', -20, 20, 1);
-  // gui.add(trooper.scene.position, 'z', -20, 20, 1);
+    const uniforms = sky.material.uniforms;
+    uniforms[ 'turbidity' ].value = effectController.turbidity;
+    uniforms[ 'rayleigh' ].value = effectController.rayleigh;
+    uniforms[ 'mieCoefficient' ].value = effectController.mieCoefficient;
+    uniforms[ 'mieDirectionalG' ].value = effectController.mieDirectionalG;
 
-  const mixer = new THREE.AnimationMixer(trooper.scene);
-  mixers.push(mixer);
-  const start = mixer.clipAction(trooper.animations[0]);
-  start.play();
+    const phi = THREE.MathUtils.degToRad( 90 - effectController.elevation );
+    const theta = THREE.MathUtils.degToRad( effectController.azimuth );
 
-  stormtrooper = trooper.scene;
-  scene.add(trooper.scene);
-});
+    sun.setFromSphericalCoords( 1, phi, theta );
 
+    uniforms[ 'sunPosition' ].value.copy( sun );
 
+    renderer.toneMappingExposure = effectController.exposure;
+    renderer.render( scene, camera );
 
-// Scroll animation
-function moveCamera(){
-  let t = document.body.getBoundingClientRect().top;
-  if(t>0){
-    t = -t;
   }
-  camera.position.z = t * -0.01;
-  camera.position.y = t * -0.0002;
-  camera.position.x = t * -0.0002;
 
-  if(stormtrooper){
-    stormtrooper.position.y = t * -0.02;
-  }
-  
+  const gui = new dat.GUI();
+
+  gui.add( effectController, 'turbidity', 0.0, 20.0, 0.1 ).onChange( guiChanged );
+  gui.add( effectController, 'rayleigh', 0.0, 4, 0.001 ).onChange( guiChanged );
+  gui.add( effectController, 'mieCoefficient', 0.0, 0.1, 0.001 ).onChange( guiChanged );
+  gui.add( effectController, 'mieDirectionalG', 0.0, 1, 0.001 ).onChange( guiChanged );
+  gui.add( effectController, 'elevation', 0, 90, 0.1 ).onChange( guiChanged );
+  gui.add( effectController, 'azimuth', - 180, 180, 0.1 ).onChange( guiChanged );
+  gui.add( effectController, 'exposure', 0, 1, 0.0001 ).onChange( guiChanged );
+
+  guiChanged();
+
 }
+initSky();
 
-document.body.onscroll = moveCamera;
-moveCamera();
-
-//Animation
-let previousRAF = null;
-function animate(t){
+// Animation
+function animate(){
   requestAnimationFrame(animate);
-
-  torus.rotation.x += 0.01;
-  torus.rotation.y += 0.005;
-  torus.rotation.x += 0.01;
-
-  moon.rotation.y += 0.005;
 
   controls.update();
 
   renderer.render(scene, camera);
-  if(previousRAF === null){
-    previousRAF = t;
-  }
-
-  const timeElapsed = (t-previousRAF) * 0.001;
-  if(mixers){
-    mixers.map(m => {m.update(timeElapsed)})
-  }
-  previousRAF = t;
 }
-
-// Add Stars
-function addStars(stars_count){
-  Array(stars_count).fill().forEach(addStar);
-}
-
-function addStar() {
-  const geometry = new THREE.SphereGeometry(0.25);
-  const material = new THREE.MeshStandardMaterial({color: 0xffffff});
-  const star = new THREE.Mesh(geometry, material);
-
-  const [x,y,z] = Array(3).fill().map(() => THREE.MathUtils.randFloatSpread(100));
-  
-  star.position.set(x,y,z);
-  scene.add(star);
-}
-addStars(200);
-
-// Background 
-const spaceTexture = new THREE.TextureLoader().load('assets/space.jpg');
-scene.background = spaceTexture;
 
 // Window resizing
 function onWindowResize() {

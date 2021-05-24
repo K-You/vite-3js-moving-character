@@ -1,5 +1,5 @@
 {
-  "name": "mmo-threejs",
+  "name": "vite-3js-empty-world",
   "version": "0.0.0",
   "scripts": {
     "dev": "vite",
