@@ -3,9 +3,9 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { Sky } from 'three/examples/jsm/objects/Sky';
 import '../style.css';
+import { CharacterController } from './CharacterController.js';
 
 class MovingCharacter {
-
   constructor(props) {
     this.init(props.domElement || 'canvas');
   }
@@ -17,6 +17,10 @@ class MovingCharacter {
       antialias: true
     });
 
+    window.addEventListener('resize', () => {
+      this.onWindowResize();
+    }, false);
+
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
@@ -27,43 +31,66 @@ class MovingCharacter {
     this.camera = new THREE.PerspectiveCamera(74, window.innerWidth / window.innerHeight, 0.1, 10000);
     this.camera.position.set(10, 10, 30);
 
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    new OrbitControls(this.camera, this.renderer.domElement);
     this.generateEnvironment();
 
-
-    // Trooper 
-    // Array of animations mixers
-    this.mixers = [];
-
-    this.trooper = null;
-    this.loadStormtrooper();
     this.tie = null;
     this.loadTieFighter();
 
-    window.addEventListener('resize', () => {
-      this.onWindowResize();
-    }, false);
+    // Array of animations mixers
+    this.mixers = [];
 
     this.totalTimeElapsed = 0;
     this.previousRAF = null;
+    this.loadAnimatedCharacter();
     this.animate();
   }
 
-  loadStormtrooper() {
-    const gltfLoader = new GLTFLoader();
-    gltfLoader.load('../assets/dancing_stormtrooper/scene.gltf', (trooper) => {
-      trooper.scene.traverse(c => {
-        c.castShadow = true;
-      });
+  loadAnimatedCharacter() {
+    const params = {
+      camera: this.camera,
+      scene: this.scene
+    }
+    this.controls = new CharacterController(params);
+  }
 
-      const mixer = new THREE.AnimationMixer(trooper.scene);
-      this.mixers.push(mixer);
-      const start = mixer.clipAction(trooper.animations[0]);
-      start.play();
+  animate() {
+    requestAnimationFrame((t) => {
 
-      this.scene.add(trooper.scene);
-      this.trooper = trooper.scene;
+      if(this.previousRAF === null){
+        this.previousRAF = t;
+      }
+
+      // this.sunlight.position.y += -1;
+      // if(this.sunlight.position.y < 0){
+      //   this.sunlight.position.y = 800;
+      // }
+
+      this.animate();
+      this.renderer.render(this.scene, this.camera);
+
+      this.step(t - this.previousRAF);
+
+      
+      this.previousRAF = t;
     });
+  }
+
+  step(timeElapsedMs) {
+    const timeElapsedSeconds = timeElapsedMs * 0.001;
+
+    if(this.mixers){
+      this.mixers.map(m => {
+        m.update(timeElapsedSeconds)
+      })
+    }
+
+    this.tieStep(timeElapsedSeconds);
+
+    if (this.controls) {
+      this.controls.update(timeElapsedSeconds);
+    }
+   
   }
 
   loadTieFighter() {
@@ -83,52 +110,31 @@ class MovingCharacter {
     this.tie.position.set(0, 20, -4000);
   }
 
-  animate() {
-    requestAnimationFrame((t) => {
-      this.controls.update();
-
-      this.renderer.render(this.scene, this.camera);
-      if(this.previousRAF === null){
-        this.previousRAF = t;
+  tieStep(timeElapsedSeconds) {
+    this.totalTimeElapsed += timeElapsedSeconds;
+    if (this.tieFighter) {
+      let speed = 1;
+      if(this.tie.position.z < -1000) {
+        speed = 200;
       }
-
-      this.animate();
-
-      if (this.tieFighter) {
-        let speed = 1;
-        if(this.tie.position.z < -1000) {
-          speed = 200;
-        }
-        if(this.tie.position.z < -500) {
-          speed = 25;
-        }
-        if(this.tie.position.z > 500) {
-          speed = 60;
-        }
-        if(this.tie.position.z > 1000) {
-          speed = 90;
-        }
-        if(this.tie.position.z > 2000) {
-          this.tieFighter = false;
-        }
-        this.tie.position.z += speed;        
+      if(this.tie.position.z < -500) {
+        speed = 25;
       }
-
-      const timeElapsed = (t-this.previousRAF) * 0.001;
-      this.totalTimeElapsed += timeElapsed;
-
-      if(this.totalTimeElapsed > 5 && !this.tieFighter) {
-        this.tieFighter = true;
-        this.animateTieFighter();
+      if(this.tie.position.z > 500) {
+        speed = 60;
       }
-
-      if(this.mixers){
-        this.mixers.map(m => {
-          m.update(timeElapsed)
-        })
+      if(this.tie.position.z > 1000) {
+        speed = 90;
       }
-      this.previousRAF = t;
-    });
+      if(this.tie.position.z > 2000) {
+        this.tieFighter = false;
+      }
+      this.tie.position.z += speed;        
+    }
+    if(this.totalTimeElapsed > 5 && !this.tieFighter) {
+      this.tieFighter = true;
+      this.animateTieFighter();
+    }
   }
 
   // Window resizing
@@ -174,8 +180,8 @@ class MovingCharacter {
   generateEnvironment() {
     const geometry = new THREE.PlaneGeometry(1000, 1000, 1, 1);
     const material = new THREE.MeshLambertMaterial({
-      // color: 0x7c966c,
-      color: 0xffffff
+      color: 0x7c966c,
+      // color: 0xffffff
     });
     material.color.setHSL( 0.095, 1, 0.75 );
 
@@ -195,11 +201,11 @@ class MovingCharacter {
     hemiLight.position.set(0, 50, 0);
     this.scene.add(hemiLight);
 
-    const dlight = new THREE.DirectionalLight(0xFFFFFF,10);
-    dlight.position.set(0,150,-4000);
+    const dlight = new THREE.DirectionalLight(0xFFFFFF,6);
+    dlight.position.set(0,550,-4000);
     dlight.target.position.set(0,0,0);
     dlight.castShadow = true;
-    dlight.shadow.bias = -0.000001;
+    dlight.shadow.bias = -0.0001;
     dlight.shadow.mapSize.width=2048
     dlight.shadow.mapSize.height=2048;
     dlight.shadow.camera.near=100;
@@ -209,6 +215,13 @@ class MovingCharacter {
     dlight.shadow.camera.top=200;
     dlight.shadow.camera.bottom=-200;
     this.scene.add(dlight);
+    // this.sunlight = dlight;
+
+    // const cameraHelper = new THREE.DirectionalLightHelper(dlight);
+    // this.scene.add(cameraHelper);
+
+    // const ambient = new THREE.AmbientLight(0xFFFFFF, 1);
+    // this.scene.add(ambient);
 
     this.generateSky();
   }
