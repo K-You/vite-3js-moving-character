@@ -29,6 +29,7 @@ class MovingCharacter {
     this.scene = new THREE.Scene();
 
     this.camera = new THREE.PerspectiveCamera(74, window.innerWidth / window.innerHeight, 0.1, 10000);
+    // this.camera.position.set(-70, 160, 280);
     this.camera.position.set(10, 10, 30);
 
     new OrbitControls(this.camera, this.renderer.domElement);
@@ -36,6 +37,8 @@ class MovingCharacter {
 
     this.tie = null;
     this.loadTieFighter();
+    this.destroyer = null;
+    this.loadStarDestroyer();
 
     // Array of animations mixers
     this.mixers = [];
@@ -44,6 +47,17 @@ class MovingCharacter {
     this.previousRAF = null;
     this.loadAnimatedCharacter();
     this.animate();
+
+    document.addEventListener('keydown', (e) => this.onKeyDown(e), false);
+  }
+
+  onKeyDown(event) {
+    if(event.keyCode === 84) { // t
+      this.animateStarDestroyer();
+    }
+    if(event.keyCode === 82) { // r
+      this.resetStarDestroyer();
+    }
   }
 
   loadAnimatedCharacter() {
@@ -86,6 +100,7 @@ class MovingCharacter {
     }
 
     this.tieStep(timeElapsedSeconds);
+    this.destroyerStep(timeElapsedSeconds);
 
     if (this.controls) {
       this.controls.update(timeElapsedSeconds);
@@ -98,42 +113,80 @@ class MovingCharacter {
     gltfLoader.load('../assets/star_wars_tie_fighter/scene.gltf', (tie) => {
       tie.scene.traverse(c => {
         c.castShadow = true;
+        c.receiveShadow = true;
       });
       
       this.tie = tie.scene;
       this.tie.scale.set(2,2,2);
     });
   }
+
+  loadStarDestroyer(){
+    const gltfLoader = new GLTFLoader();
+    gltfLoader.load('../assets/star_destroyer/scene.gltf', (destroyer) => {
+      destroyer.scene.traverse(c => {
+        c.castShadow = true;
+        c.receiveShadow = true;
+      });
+      
+      this.destroyer = destroyer.scene;
+      destroyer.scene.scale.set(50,50,50);
+      destroyer.scene.rotation.y = -Math.PI/2;
+    });
+  }
   
   animateTieFighter() {
-    this.scene.add(this.tie);
     this.tie.position.set(0, 20, -4000);
+    this.scene.add(this.tie);
+  }
+
+  animateStarDestroyer() {
+    this.destroyerToggle = true;
+    this.destroyer.position.set(60, 150, -8000);
+    this.scene.add(this.destroyer);
+  }
+
+  resetStarDestroyer() {
+    this.destroyerToggle = false;
+    this.scene.remove(this.destroyer);
   }
 
   tieStep(timeElapsedSeconds) {
     this.totalTimeElapsed += timeElapsedSeconds;
-    if (this.tieFighter) {
+    if (this.tieToggle) {
       let speed = 1;
       if(this.tie.position.z < -1000) {
         speed = 200;
       }
-      if(this.tie.position.z < -500) {
+      else if(this.tie.position.z < -500) {
         speed = 25;
       }
-      if(this.tie.position.z > 500) {
+      else if(this.tie.position.z > 500) {
         speed = 60;
       }
-      if(this.tie.position.z > 1000) {
+      else if(this.tie.position.z > 1000) {
         speed = 90;
       }
-      if(this.tie.position.z > 2000) {
-        this.tieFighter = false;
+      else if(this.tie.position.z > 2000) {
+        this.tieToggle = false;
       }
       this.tie.position.z += speed;        
     }
-    if(this.totalTimeElapsed > 5 && !this.tieFighter) {
-      this.tieFighter = true;
+    if(this.totalTimeElapsed > 5 && !this.tieToggle) {
+      this.tieToggle = true;
       this.animateTieFighter();
+    }
+  }
+
+  destroyerStep(timeElapsedSeconds) {
+    if(this.destroyer && this.destroyerToggle){
+      this.totalTimeElapsed += timeElapsedSeconds;
+      let speed = 400;
+      
+      if(this.destroyer.position.z > -1000) {
+        speed = 0;
+      }
+      this.destroyer.position.z += speed;
     }
   }
 
@@ -178,7 +231,7 @@ class MovingCharacter {
   
 
   generateEnvironment() {
-    const geometry = new THREE.PlaneGeometry(1000, 1000, 1, 1);
+    const geometry = new THREE.PlaneGeometry(10000, 10000, 1, 1);
     const material = new THREE.MeshLambertMaterial({
       color: 0x7c966c,
       // color: 0xffffff
@@ -201,7 +254,7 @@ class MovingCharacter {
     hemiLight.position.set(0, 50, 0);
     this.scene.add(hemiLight);
 
-    const dlight = new THREE.DirectionalLight(0xFFFFFF,6);
+    const dlight = new THREE.DirectionalLight(0xFFFFFF,5);
     dlight.position.set(0,550,-4000);
     dlight.target.position.set(0,0,0);
     dlight.castShadow = true;
@@ -210,10 +263,10 @@ class MovingCharacter {
     dlight.shadow.mapSize.height=2048;
     dlight.shadow.camera.near=100;
     dlight.shadow.camera.far=10000;
-    dlight.shadow.camera.left=200;
-    dlight.shadow.camera.right=-200;
-    dlight.shadow.camera.top=200;
-    dlight.shadow.camera.bottom=-200;
+    dlight.shadow.camera.left=400;
+    dlight.shadow.camera.right=-400;
+    dlight.shadow.camera.top=400;
+    dlight.shadow.camera.bottom=-400;
     this.scene.add(dlight);
     // this.sunlight = dlight;
 

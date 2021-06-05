@@ -10,7 +10,6 @@ class FiniteStateMachine {
 
   setState(name) {
     const previousState = this.currentState;
-    console.log(name);
     if(previousState) {
       if (previousState === name) {
         return;

@@ -34,6 +34,7 @@ class CharacterController {
       fbx.scale.setScalar(0.02);
       fbx.traverse(c => {
         c.castShadow = true;
+        c.receiveShadow = true;
       });
       this.target = fbx;
 

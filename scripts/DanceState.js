@@ -41,7 +41,6 @@ class DanceState extends State {
   }
 
   cleanupCallback(event) {
-    console.log(event);
   }
 
   exit() {
