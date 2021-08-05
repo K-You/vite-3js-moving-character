@@ -1,5 +1,7 @@
 import * as THREE from 'THREE';
+import { LoadingManager } from 'THREE';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader';
+import { TGALoader } from 'three/examples/jsm/loaders/TGALoader';
 import { CharacterControllerInput } from './CharacterControllerInput';
 import { CharacterControllerProxy } from './CharacterControllerProxy';
 import { CharacterFSM } from './CharacterFSM';
@@ -23,10 +25,61 @@ class CharacterController {
 
     this.stateMachine = new CharacterFSM(new CharacterControllerProxy(this.animations));
     
-    this.loadModels();
+    this.loadModels(this.params.type);
   }
 
-  loadModels(){
+  loadModels(type){
+    if(type === 'droid') {
+      this.loadDroid();
+    } 
+    if(type === 'trooper'){
+      this.loadTrooper();
+    }
+  }
+
+  loadTrooper() {
+    const manager = new LoadingManager();
+    manager.addHandler(/\.tga$/i, new TGALoader());
+
+    const fbxLoader = new FBXLoader(manager);
+    const rootPath = '../assets/stormtrooper/dancing-stormtrooper/';
+    fbxLoader.setPath(rootPath +'source/');
+    fbxLoader.load('silly_dancing.fbx', (fbx) => {
+      fbx.scale.setScalar(2);
+      fbx.traverse(c => {
+        c.castShadow = true;
+        c.receiveShadow = true;
+      });
+      this.target = fbx;
+
+      this.params.scene.add(this.target);
+      this.target.position.set(5, 0, 0);
+      this.mixer = new THREE.AnimationMixer(this.target);
+
+      this.manager = new THREE.LoadingManager();
+      this.manager.onLoad = () => {
+        this.stateMachine.setState('idle');
+      }
+
+      const onLoad = (animationName, anim) => {
+        const clip = anim.animations[0];
+        const action = this.mixer.clipAction(clip);
+  
+        this.animations[animationName] = {
+          clip,
+          action
+        }
+      }
+      const fbxLoader = new FBXLoader(this.manager);
+      fbxLoader.setPath(rootPath+'animations/');
+      fbxLoader.load('Rifle Idle.fbx', (a) => { onLoad('idle', a); });
+      fbxLoader.load('Rifle Walk.fbx', (a) => { onLoad('walk', a); });
+      fbxLoader.load('Rifle Run.fbx', (a) => { onLoad('run', a); });
+      fbxLoader.load('Dancing.fbx', (a) => { onLoad('dance', a); });
+    });
+  }
+
+  loadDroid() {
     const fbxLoader = new FBXLoader();
     const rootPath = '../assets/battle-droid-force-pushed/';
     fbxLoader.setPath(rootPath+'source/');
@@ -39,6 +92,7 @@ class CharacterController {
       this.target = fbx;
 
       this.params.scene.add(this.target);
+      this.target.position.set(-5, 0, 0);
       this.mixer = new THREE.AnimationMixer(this.target);
 
       this.manager = new THREE.LoadingManager();

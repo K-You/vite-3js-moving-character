@@ -45,7 +45,8 @@ class MovingCharacter {
 
     this.totalTimeElapsed = 0;
     this.previousRAF = null;
-    this.loadAnimatedCharacter();
+    this.loadAnimatedCharacter({type: 'trooper'});
+    this.loadAnimatedCharacter({type: 'droid'});
     this.animate();
 
     document.addEventListener('keydown', (e) => this.onKeyDown(e), false);
@@ -56,16 +57,20 @@ class MovingCharacter {
       this.animateStarDestroyer();
     }
     if(event.keyCode === 82) { // r
-      this.resetStarDestroyer();
+      this.destroyerLeaving = true;
     }
   }
 
-  loadAnimatedCharacter() {
+  loadAnimatedCharacter({ type }) {
     const params = {
       camera: this.camera,
-      scene: this.scene
+      scene: this.scene,
+      type,
     }
-    this.controls = new CharacterController(params);
+    if (!this.controls) {
+      this.controls = {};
+    }
+    this.controls[type] = new CharacterController(params);
   }
 
   animate() {
@@ -103,7 +108,9 @@ class MovingCharacter {
     this.destroyerStep(timeElapsedSeconds);
 
     if (this.controls) {
-      this.controls.update(timeElapsedSeconds);
+      for(let key in this.controls) {
+        this.controls[key].update(timeElapsedSeconds)
+      }
     }
    
   }
@@ -142,6 +149,7 @@ class MovingCharacter {
 
   animateStarDestroyer() {
     this.destroyerToggle = true;
+    this.destroyerLeaving = false;
     this.destroyer.position.set(60, 150, -8000);
     this.scene.add(this.destroyer);
   }
@@ -158,19 +166,19 @@ class MovingCharacter {
       if(this.tie.position.z < -1000) {
         speed = 200;
       }
-      else if(this.tie.position.z < -500) {
+      if(this.tie.position.z < -500) {
         speed = 25;
       }
-      else if(this.tie.position.z > 500) {
+      if(this.tie.position.z > 500) {
         speed = 60;
       }
-      else if(this.tie.position.z > 1000) {
+      if(this.tie.position.z > 1000) {
         speed = 90;
       }
-      else if(this.tie.position.z > 2000) {
+      if(this.tie.position.z > 2000) {
         this.tieToggle = false;
       }
-      this.tie.position.z += speed;        
+      this.tie.position.z += speed;
     }
     if(this.totalTimeElapsed > 5 && !this.tieToggle) {
       this.tieToggle = true;
@@ -185,6 +193,15 @@ class MovingCharacter {
       
       if(this.destroyer.position.z > -1000) {
         speed = 0;
+      }
+      if(this.destroyerLeaving) {
+        speed = 5;
+        if(this.destroyer.position.z > 1000) {
+          speed = 30;
+        }
+        if(this.destroyer.position.z > 4000) {
+          this.resetStarDestroyer();
+        }
       }
       this.destroyer.position.z += speed;
     }
