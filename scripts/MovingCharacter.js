@@ -245,7 +245,28 @@ class MovingCharacter {
 
     this.renderer.toneMappingExposure = effectController.exposure;
   }
-  
+
+  generateCubeSpace() {
+    const loader = new THREE.CubeTextureLoader();
+    const texture = loader.load([
+      '../assets/background/space-posx-debug.jpeg',
+      '../assets/background/space-negx-debug.jpeg',
+      '../assets/background/space-posy-debug.jpeg',
+      '../assets/background/space-negy-debug.jpeg',
+      '../assets/background/space-posz-debug.jpeg',
+      '../assets/background/space-negz-debug.jpeg'
+    ]);
+    texture.encoding = THREE.sRGBEncoding;
+
+    this.scene.background = texture;
+
+     // Light
+     const hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 0.6);
+     hemiLight.color.setHSL(0.6, 1, 0.6);
+     hemiLight.groundColor.setHSL(0.095, 1, 0.75);
+     hemiLight.position.set(0, 50, 0);
+     this.scene.add(hemiLight);
+  }
 
   generateEnvironment() {
     const geometry = new THREE.PlaneGeometry(10000, 10000, 1, 1);
@@ -295,6 +316,8 @@ class MovingCharacter {
 
     this.generateSky();
   }
+
+
 
 }
 
