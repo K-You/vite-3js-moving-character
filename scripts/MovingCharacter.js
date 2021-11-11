@@ -39,6 +39,7 @@ class MovingCharacter {
     this.loadTieFighter();
     this.destroyer = null;
     this.loadStarDestroyer();
+    this.loadSpider();
 
     // Array of animations mixers
     this.mixers = [];
@@ -266,6 +267,34 @@ class MovingCharacter {
      hemiLight.groundColor.setHSL(0.095, 1, 0.75);
      hemiLight.position.set(0, 50, 0);
      this.scene.add(hemiLight);
+  }
+
+  loadSpider() {
+    const fbxLoader = new GLTFLoader();
+    const rootPath = '../assets/spider/';
+    fbxLoader.setPath(rootPath);
+    fbxLoader.load('arana-8legged.glb', (fbx) => {
+      // fbx.scene.scale.setScalar(0.05);
+      fbx.scene.traverse(c => {
+        c.castShadow = true;
+        c.receiveShadow = true;
+      //   if( c.material ) {
+      //     c.material = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
+      //  }
+      });
+      this.target = fbx.scene;
+
+      this.scene.add(this.target);
+      this.target.position.set(20, 0, 0);
+      this.target.rotation.y = -Math.PI/2;
+
+      this.manager = new THREE.LoadingManager();
+
+      // const mixer = new THREE.AnimationMixer(this.target);
+      // this.mixers.push(mixer);
+      // // const start = mixer.clipAction(fbx.animations[0]);
+      // // start.play();
+    });
   }
 
   generateEnvironment() {
